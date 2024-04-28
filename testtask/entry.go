@@ -1,23 +1,38 @@
 package testtask
 
 import (
+	"encoding/json"
 	"io"
 	"time"
 )
 
-// CHANGE SOMEHOW
 type MessageEntry struct {
-	Message   string    `json:"message"`
-	Timestamp time.Time `json:"timestamp"`
+	message   string
+	timestamp time.Time
 	err       error
 }
 
 func (m *MessageEntry) Val() string {
-	return "[" + m.Timestamp.Format(time.DateTime) + "]: " + m.Message
+	return "[" + m.timestamp.Format(time.DateTime) + "]: " + m.message
 }
 
 func (m *MessageEntry) Err() error {
 	return m.err
+}
+
+func (m *MessageEntry) UnmarshalJSON(data []byte) error {
+	var msg struct {
+		Message   string    `json:"message"`
+		Timestamp time.Time `json:"timestamp"`
+	}
+
+	if err := json.Unmarshal(data, &msg); err != nil {
+		return err
+	}
+
+	m.message = msg.Message
+	m.timestamp = msg.Timestamp
+	return nil
 }
 
 type ErrorEntry struct {
@@ -41,7 +56,9 @@ func (a *AsyncErrorEntry) PassVal(err error) {
 }
 
 func (a *AsyncErrorEntry) Close() {
-	close(a.err)
+	if a.err != nil {
+		close(a.err)
+	}
 }
 
 type AsyncStringEntry struct {
@@ -66,8 +83,12 @@ func (a *AsyncStringEntry) PassErr(err error) {
 }
 
 func (a *AsyncStringEntry) Close() {
-	close(a.err)
-	close(a.message)
+	if a.err != nil {
+		close(a.err)
+	}
+	if a.message != nil {
+		close(a.message)
+	}
 }
 
 type FileEntry struct {

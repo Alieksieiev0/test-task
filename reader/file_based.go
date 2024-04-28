@@ -2,7 +2,6 @@ package reader
 
 import (
 	"bufio"
-	"fmt"
 	"os"
 )
 
@@ -17,7 +16,6 @@ func (f *FileBased) Read() (string, error) {
 }
 
 func (f *FileBased) Close() {
-	fmt.Println(f.file.Name())
 	f.file.Close()
 }
 

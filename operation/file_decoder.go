@@ -8,24 +8,24 @@ import (
 	"golang.org/x/net/context"
 )
 
-func NewAsyncFileDecoder[T AsyncErrorProneEntry[string], U func(AsyncEntry[string]) AsyncEntry[error]]() *AsyncFileDecoder[T, U] {
+func NewAsyncFileDecoder[T AsyncErrorProneEntry[string], V AsyncEntry[error]]() *AsyncFileDecoder[T, V] {
 	ctx, close := context.WithCancel(context.Background())
-	return &AsyncFileDecoder[T, U]{ctx: ctx, close: close}
+	return &AsyncFileDecoder[T, V]{ctx: ctx, close: close}
 }
 
-type AsyncFileDecoder[T AsyncErrorProneEntry[string], U func(AsyncEntry[string]) AsyncEntry[error]] struct {
+type AsyncFileDecoder[T AsyncErrorProneEntry[string], V AsyncEntry[error]] struct {
 	ctx   context.Context
 	close func()
 }
 
-func (a *AsyncFileDecoder[T, U]) Close() error {
+func (a *AsyncFileDecoder[T, V]) Close() error {
 	a.close()
 	return nil
 }
 
-func (a *AsyncFileDecoder[T, U]) Run(
+func (a *AsyncFileDecoder[T, V]) Run(
 	readIterator iterator.Iterator[T],
-	writeCallbackIterator iterator.Iterator[U],
+	writeCallbackIterator iterator.Iterator[func(T) V],
 ) {
 	var wg sync.WaitGroup
 	for {
@@ -33,8 +33,7 @@ func (a *AsyncFileDecoder[T, U]) Run(
 		readEntry := readIterator.Next()
 		readResults := readEntry.Val()
 		if readEntry.Err() != nil {
-			// nil check?
-			readResults.Close()
+			fmt.Println(readEntry.Err())
 			wg.Done()
 			break
 		}
@@ -44,7 +43,8 @@ func (a *AsyncFileDecoder[T, U]) Run(
 			wg.Done()
 			break
 		}
-		writeResults := writeCallbackEntry.Val()(readResults)
+		writerCallback := writeCallbackEntry.Val()
+		writeResults := writerCallback(readResults)
 
 		go func() {
 			for {

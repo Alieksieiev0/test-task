@@ -1,5 +1,9 @@
 package iterator
 
+type IteratorWrapper[Input, Output any] interface {
+	Wrap(Iterator[Input]) Iterator[Output]
+}
+
 type Iterator[T any] interface {
 	Next() Iteration[T]
 	Close()

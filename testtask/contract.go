@@ -2,6 +2,8 @@ package testtask
 
 import (
 	"github.com/Alieksieiev0/test-task/iterator"
+	"github.com/Alieksieiev0/test-task/reader"
+	"github.com/Alieksieiev0/test-task/writer"
 )
 
 type Source[T any] interface {
@@ -17,8 +19,8 @@ type Operation[Input any, Output any] interface {
 	Run(iterator iterator.Iterator[Input], results Output)
 }
 
-type MultiOperation[T, U any] interface {
-	Run(firstIter iterator.Iterator[T], secondIter iterator.Iterator[U])
+type CallbackOperation[T, V any] interface {
+	Run(firstIter iterator.Iterator[T], secondIter iterator.Iterator[func(T) V])
 }
 
 type Processor[Input, Output any] interface {
@@ -64,3 +66,11 @@ type Factory[Input, Output any] interface {
 
 type FactoryFunc[Input, Output any] func(i Input) Output
 type ErrorFactoryFunc[Input, Output any] func(i Input) (Output, error)
+
+type ApplicationParser[Input, Output any] interface {
+	Parse(r reader.Reader[Input]) iterator.Iterator[Output]
+}
+
+type ApplicationWriter[Input, Data, Output any] interface {
+	Write(w writer.Writer[Input], data Data) iterator.Iterator[Output]
+}

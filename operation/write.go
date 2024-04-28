@@ -7,12 +7,12 @@ import (
 	"golang.org/x/net/context"
 )
 
-func NewAsyncWriteOperation[Input error, Output AsyncEntry[error]]() *AsyncWriteOperation[Input, Output] {
+func NewAsyncWriteOperation[Input Entry[error], Output AsyncEntry[error]]() *AsyncWriteOperation[Input, Output] {
 	ctx, close := context.WithCancel(context.Background())
 	return &AsyncWriteOperation[Input, Output]{ctx: ctx, close: close}
 }
 
-type AsyncWriteOperation[Input error, Output AsyncEntry[error]] struct {
+type AsyncWriteOperation[Input Entry[error], Output AsyncEntry[error]] struct {
 	ctx   context.Context
 	close func()
 }
@@ -35,6 +35,7 @@ func (r *AsyncWriteOperation[Input, Output]) Run(
 		default:
 			entry := iterator.Next()
 			if entry.Err() != nil {
+				results.PassVal(entry.Err())
 				results.Close()
 				return
 			}

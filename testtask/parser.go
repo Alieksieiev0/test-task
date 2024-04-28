@@ -8,13 +8,13 @@ import (
 	"github.com/Alieksieiev0/test-task/reader"
 )
 
-type AppParser struct {
+type DefaultParser struct {
 	processor     Processor[string, ErrorProneEntry[string]]
 	sourceFactory FactoryFunc[reader.Reader[string], Source[string]]
 	entryFactory  Factory[io.Reader, ErrorProneEntry[string]]
 }
 
-func (a *AppParser) Parse(
+func (a *DefaultParser) Parse(
 	reader reader.Reader[string],
 ) iterator.Iterator[ErrorProneEntry[string]] {
 	return a.processor.Process(
@@ -25,19 +25,19 @@ func (a *AppParser) Parse(
 	)
 }
 
-func NewAppParserFactory() AppParserFactory {
-	return AppParserFactory{}
+func NewDefaultParserFactory() DefaultParserFactory {
+	return DefaultParserFactory{}
 }
 
-type AppParserFactory struct {
+type DefaultParserFactory struct {
 }
 
-func (a AppParserFactory) Create(
+func (a DefaultParserFactory) Create(
 	processor Processor[string, ErrorProneEntry[string]],
 	sourceFactory FactoryFunc[reader.Reader[string], Source[string]],
 	parser Parser[io.Reader, *MessageEntry],
-) *AppParser {
-	return &AppParser{
+) ApplicationParser[string, ErrorProneEntry[string]] {
+	return &DefaultParser{
 		processor:     processor,
 		sourceFactory: sourceFactory,
 		entryFactory:  NewMessageEntryFactory(parser),

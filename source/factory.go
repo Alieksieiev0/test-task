@@ -31,11 +31,23 @@ func (f AsyncFileContentFactory) Create(message <-chan string) testtask.Source[s
 	}
 }
 
+func NewSortedFilePairsFactory() SortedFilePairsFactory {
+	return SortedFilePairsFactory{}
+}
+
 type SortedFilePairsFactory struct {
 }
 
 func (s SortedFilePairsFactory) CreateFromMap(files map[string]string) *SortedFilePairs {
+	var keys []string
+	var values []string
+	for k, v := range files {
+		keys = append(keys, k)
+		values = append(values, v)
+	}
+
 	return &SortedFilePairs{
-		keys: NewFileCollection(),
+		keys:   NewFileCollection(keys),
+		values: NewFileCollection(values),
 	}
 }

@@ -5,11 +5,11 @@ import (
 	"io"
 )
 
-func NewJsonParser[T any]() *JsonParser[T] {
+func NewJsonParser[T json.Unmarshaler]() *JsonParser[T] {
 	return &JsonParser[T]{}
 }
 
-type JsonParser[T any] struct {
+type JsonParser[T json.Unmarshaler] struct {
 }
 
 func (j *JsonParser[T]) Parse(r io.Reader, v T) (T, error) {

@@ -5,13 +5,13 @@ import (
 	"github.com/Alieksieiev0/test-task/writer"
 )
 
-type AppWriter struct {
+type DefaultWriter struct {
 	processor     Processor[string, Entry[error]]
 	sourceFactory FactoryFunc[<-chan string, Source[string]]
 	entryFactory  Factory[error, Entry[error]]
 }
 
-func (w *AppWriter) Writer(
+func (w *DefaultWriter) Write(
 	writer writer.Writer[string],
 	data AsyncEntry[string],
 ) iterator.Iterator[Entry[error]] {
@@ -20,18 +20,18 @@ func (w *AppWriter) Writer(
 	})
 }
 
-func NewAppWriterFactory() *AppWriterFactory {
-	return &AppWriterFactory{}
+func NewDefaultWriterFactory() *DefaultWriterFactory {
+	return &DefaultWriterFactory{}
 }
 
-type AppWriterFactory struct {
+type DefaultWriterFactory struct {
 }
 
-func (a *AppWriterFactory) Create(
+func (a *DefaultWriterFactory) Create(
 	processor Processor[string, Entry[error]],
 	sourceFactory FactoryFunc[<-chan string, Source[string]],
-) *AppWriter {
-	return &AppWriter{
+) ApplicationWriter[string, AsyncEntry[string], Entry[error]] {
+	return &DefaultWriter{
 		processor:     processor,
 		sourceFactory: sourceFactory,
 		entryFactory:  NewErrorEntryFactory(),
