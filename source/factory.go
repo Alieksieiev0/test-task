@@ -30,3 +30,12 @@ func (f AsyncFileContentFactory) Create(message <-chan string) testtask.Source[s
 		message: message,
 	}
 }
+
+type SortedFilePairsFactory struct {
+}
+
+func (s SortedFilePairsFactory) CreateFromMap(files map[string]string) *SortedFilePairs {
+	return &SortedFilePairs{
+		keys: NewFileCollection(),
+	}
+}

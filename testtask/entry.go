@@ -5,6 +5,7 @@ import (
 	"time"
 )
 
+// CHANGE SOMEHOW
 type MessageEntry struct {
 	Message   string    `json:"message"`
 	Timestamp time.Time `json:"timestamp"`
@@ -17,6 +18,14 @@ func (m *MessageEntry) Val() string {
 
 func (m *MessageEntry) Err() error {
 	return m.err
+}
+
+type ErrorEntry struct {
+	err error
+}
+
+func (e *ErrorEntry) Val() error {
+	return e.err
 }
 
 type AsyncErrorEntry struct {

@@ -23,6 +23,17 @@ func (m MessageEntryFactory) Create(r io.Reader) ErrorProneEntry[string] {
 	return e
 }
 
+func NewErrorEntryFactory() ErrorEntryFactory {
+	return ErrorEntryFactory{}
+}
+
+type ErrorEntryFactory struct {
+}
+
+func (s ErrorEntryFactory) Create(err error) Entry[error] {
+	return &ErrorEntry{err: err}
+}
+
 func NewAsyncErrorEntryFactory() AsyncErrorEntryFactory {
 	return AsyncErrorEntryFactory{}
 }

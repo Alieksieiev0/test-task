@@ -8,17 +8,17 @@ type Source[T any] interface {
 	Data() iterator.Iterator[T]
 }
 
-type Loader[T any] interface {
-	Load(source T)
-}
-
-type SourceLoader[Input, Output any] interface {
-	Loader[Input]
-	Source[Output]
+type KeyValueSource[K, V any] interface {
+	Keys() iterator.Iterator[K]
+	Values() iterator.Iterator[V]
 }
 
 type Operation[Input any, Output any] interface {
 	Run(iterator iterator.Iterator[Input], results Output)
+}
+
+type MultiOperation[T, U any] interface {
+	Run(firstIter iterator.Iterator[T], secondIter iterator.Iterator[U])
 }
 
 type Processor[Input, Output any] interface {
@@ -27,11 +27,6 @@ type Processor[Input, Output any] interface {
 
 type Parser[Input, Output any] interface {
 	Parse(data Input, out Output) (Output, error)
-}
-
-type Result[T any] interface {
-	Val() T
-	Err() error
 }
 
 type Entry[T any] interface {

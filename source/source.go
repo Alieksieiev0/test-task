@@ -7,12 +7,11 @@ import (
 	"github.com/Alieksieiev0/test-task/iterator"
 	"github.com/Alieksieiev0/test-task/reader"
 	"go.uber.org/atomic"
-	"golang.org/x/exp/maps"
 )
 
-func NewFileCollection(files map[string]string) *FileCollection {
+func NewFileCollection(files []string) *FileCollection {
 	return &FileCollection{
-		files:  maps.Keys(files),
+		files:  files,
 		offset: atomic.NewInt64(0),
 	}
 }
