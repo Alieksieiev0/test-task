@@ -1,12 +1,21 @@
 package source
 
 import (
-	"bufio"
+	"fmt"
 	"io"
 
 	"github.com/Alieksieiev0/test-task/iterator"
+	"github.com/Alieksieiev0/test-task/reader"
 	"go.uber.org/atomic"
+	"golang.org/x/exp/maps"
 )
+
+func NewFileCollection(files map[string]string) *FileCollection {
+	return &FileCollection{
+		files:  maps.Keys(files),
+		offset: atomic.NewInt64(0),
+	}
+}
 
 type FileCollection struct {
 	files  []string
@@ -24,20 +33,39 @@ func (f *FileCollection) Data() iterator.Iterator[string] {
 	})
 }
 
-type FileContent struct {
-	r     *bufio.Reader
-	delim byte
+func NewFileContent() *FileContent {
+	return &FileContent{}
 }
 
-func (f *FileContent) Load(file io.Reader) {
-	f.r = bufio.NewReader(file)
+type FileContent struct {
+	reader reader.Reader[string]
 }
 
 func (f *FileContent) Data() iterator.Iterator[string] {
 	return iterator.NewCallbackBased(func() *iterator.Step[string] {
-		content, err := f.r.ReadString(f.delim)
+		if f.reader == nil {
+			return iterator.NewStepErr[string](fmt.Errorf("file contents were not provided"))
+		}
+		content, err := f.reader.Read()
 		if err != nil {
 			return iterator.NewStepErr[string](err)
+		}
+		return iterator.NewStepVal(content)
+	})
+}
+
+type AsyncFileContent struct {
+	message <-chan string
+}
+
+func (f *AsyncFileContent) Data() iterator.Iterator[string] {
+	return iterator.NewCallbackBased(func() *iterator.Step[string] {
+		if f.message == nil {
+			return iterator.NewStepErr[string](fmt.Errorf("file contents were not provided"))
+		}
+		content, ok := <-f.message
+		if !ok {
+			return iterator.NewStepErr[string](io.EOF)
 		}
 		return iterator.NewStepVal(content)
 	})

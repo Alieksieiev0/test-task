@@ -4,55 +4,183 @@ import (
 	"fmt"
 	"io"
 	"strings"
+	"sync"
 
-	"github.com/Alieksieiev0/test-task/iterator"
+	"github.com/Alieksieiev0/test-task/reader"
+	"github.com/Alieksieiev0/test-task/writer"
 )
 
 type App struct {
-	fileOpener FileOpener
-	fileReader FileReader
-}
-
-type FileReader struct {
-	processor    Processor[string, Entry]
-	factory      Factory[io.Reader, Entry]
-	sourceLoader SourceLoader[io.Reader, string]
-	operation    Operation[Entry]
+	sourcesMap map[string]string
+	source     Source[string]
+	reader     AppReader
+	writer     AppWriter
 }
 
 func (a *App) Run() {
-	entries := a.fileOpener.Open()
+	var wg sync.WaitGroup
+	inputs := a.source.Data()
 	for {
-		entry := entries.Next()
-		if entry.Err() != nil {
-			return
+		inputName := inputs.Next()
+		if inputName.Err() != nil {
+			break
 		}
-		file := entry.Val()
-		if file.Err() != nil {
-			return
-		}
-		file.Close()
-		if err := a.fileReader.Read(file.Val()); err != nil {
-			fmt.Println(err)
-		}
+		wg.Add(1)
+
+		readResults := a.reader.AsyncRead(inputName.Val())
+		writeResults := a.writer.AsyncWrite(a.sourcesMap[inputName.Val()], readResults)
+		go func() {
+			for {
+				select {
+				case err, ok := <-readResults.Err():
+					if !ok {
+						continue
+					}
+					fmt.Println("ERROR READING FILE ", inputName.Val(), err)
+					wg.Done()
+					return
+				case err, more := <-writeResults.Val():
+					if !more {
+						fmt.Println("NO MORE: ", inputName.Val())
+
+						wg.Done()
+						return
+					}
+					fmt.Println("ERROR SAVING FILE: ", inputName.Val(), err)
+					wg.Done()
+					return
+					//cancelFunc()
+				}
+
+			}
+		}()
+	}
+	wg.Wait()
+}
+
+func NewAppFactory() *AppFactory {
+	return &AppFactory{}
+}
+
+type AppFactory struct {
+}
+
+func (a *AppFactory) Create(
+	sourcesMap map[string]string,
+	source Source[string],
+	reader AppReader,
+	writer AppWriter,
+) *App {
+	return &App{
+		sourcesMap: sourcesMap,
+		source:     source,
+		reader:     reader,
+		writer:     writer,
 	}
 }
 
-func (f *FileReader) Read(file io.Reader) error {
-	f.sourceLoader.Load(file)
-	return f.operation.Run(f.processor.Process(f.sourceLoader.Data(), func(data string) Entry {
-		return f.factory.Create(strings.NewReader(data))
-	}))
+type AppReader struct {
+	processor         Processor[string, ErrorProneEntry[string]]
+	operation         Operation[ErrorProneEntry[string], AsyncErrorProneEntry[string]]
+	readerFactory     ErrorFactoryFunc[string, reader.Reader[string]]
+	sourceFactory     FactoryFunc[reader.Reader[string], Source[string]]
+	entryFactory      Factory[io.Reader, ErrorProneEntry[string]]
+	asyncEntryFactory PlainFactory[AsyncErrorProneEntry[string]]
 }
 
-type FileOpener struct {
-	processor Processor[string, OSEntry[io.Reader]]
-	source    Source[string]
-	factory   Factory[string, OSEntry[io.Reader]]
+func (r *AppReader) AsyncRead(data string) AsyncErrorProneEntry[string] {
+	asyncEntry := r.asyncEntryFactory.Create()
+	go func() {
+		reader, err := r.readerFactory(data)
+		if err != nil {
+			asyncEntry.PassErr(err)
+			return
+		}
+		fmt.Println(data)
+		defer reader.Close()
+		r.operation.Run(
+			r.processor.Process(
+				r.sourceFactory(reader).Data(),
+				func(data string) ErrorProneEntry[string] {
+					return r.entryFactory.Create(strings.NewReader(data))
+				},
+			),
+			asyncEntry,
+		)
+	}()
+	return asyncEntry
 }
 
-func (f *FileOpener) Open() iterator.Iterator[OSEntry[io.Reader]] {
-	return f.processor.Process(f.source.Data(), func(data string) OSEntry[io.Reader] {
-		return f.factory.Create(data)
-	})
+func NewStringReaderFactory() *StringReaderFactory {
+	return &StringReaderFactory{}
+}
+
+type StringReaderFactory struct {
+}
+
+func (a *StringReaderFactory) Create(
+	processor Processor[string, ErrorProneEntry[string]],
+	operation Operation[ErrorProneEntry[string], AsyncErrorProneEntry[string]],
+	parser Parser[io.Reader, *MessageEntry],
+	readerFactory ErrorFactoryFunc[string, reader.Reader[string]],
+	sourceFactory FactoryFunc[reader.Reader[string], Source[string]],
+) *AppReader {
+	return &AppReader{
+		processor:         processor,
+		operation:         operation,
+		readerFactory:     readerFactory,
+		sourceFactory:     sourceFactory,
+		entryFactory:      NewMessageEntryFactory(parser),
+		asyncEntryFactory: NewAsyncStringEntryFactory(),
+	}
+}
+
+type AppWriter struct {
+	processor         Processor[string, error]
+	operation         Operation[error, AsyncEntry[error]]
+	sourceFactory     FactoryFunc[<-chan string, Source[string]]
+	writerFactory     ErrorFactoryFunc[string, writer.Writer[string]]
+	asyncEntryFactory PlainFactory[AsyncEntry[error]]
+}
+
+func (w *AppWriter) AsyncWrite(target string, data AsyncEntry[string]) AsyncEntry[error] {
+	asyncEntry := w.asyncEntryFactory.Create()
+	go func() {
+		writer, err := w.writerFactory(target)
+		if err != nil {
+			asyncEntry.PassVal(err)
+			return
+		}
+		defer writer.Close()
+
+		w.operation.Run(
+			w.processor.Process(w.sourceFactory(data.Val()).Data(), func(data string) error {
+				return writer.Write(data)
+			}),
+			asyncEntry,
+		)
+	}()
+	return asyncEntry
+}
+
+func NewStringWriterFactory() *StringWriterFactory {
+	return &StringWriterFactory{}
+}
+
+type StringWriterFactory struct {
+}
+
+func (a *StringWriterFactory) Create(
+	processor Processor[string, error],
+	sourceFactory FactoryFunc[<-chan string, Source[string]],
+	operation Operation[error, AsyncEntry[error]],
+	writerFactory ErrorFactoryFunc[string, writer.Writer[string]],
+) *AppWriter {
+	return &AppWriter{
+		processor:         processor,
+		sourceFactory:     sourceFactory,
+		operation:         operation,
+		writerFactory:     writerFactory,
+		asyncEntryFactory: NewAsyncErrorEntryFactory(),
+	}
 }

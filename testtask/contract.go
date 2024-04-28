@@ -12,13 +12,13 @@ type Loader[T any] interface {
 	Load(source T)
 }
 
-type Operation[T any] interface {
-	Run(iterator iterator.Iterator[T]) error
-}
-
 type SourceLoader[Input, Output any] interface {
 	Loader[Input]
 	Source[Output]
+}
+
+type Operation[Input any, Output any] interface {
+	Run(iterator iterator.Iterator[Input], results Output)
 }
 
 type Processor[Input, Output any] interface {
@@ -29,21 +29,43 @@ type Parser[Input, Output any] interface {
 	Parse(data Input, out Output) (Output, error)
 }
 
-type Entry interface {
-	String() string
-	Err() error
-}
-
-type IOEntry[T any] interface {
+type Result[T any] interface {
 	Val() T
 	Err() error
 }
 
-type OSEntry[T any] interface {
-	IOEntry[T]
+type Entry[T any] interface {
+	Val() T
+}
+
+type ErrorProneEntry[T any] interface {
+	Entry[T]
+	Err() error
+}
+
+type Closable interface {
 	Close()
+}
+
+type AsyncEntry[T any] interface {
+	Entry[<-chan T]
+	Closable
+	PassVal(T)
+}
+
+type AsyncErrorProneEntry[T any] interface {
+	AsyncEntry[T]
+	Err() <-chan error
+	PassErr(error)
+}
+
+type PlainFactory[T any] interface {
+	Create() T
 }
 
 type Factory[Input, Output any] interface {
 	Create(data Input) Output
 }
+
+type FactoryFunc[Input, Output any] func(i Input) Output
+type ErrorFactoryFunc[Input, Output any] func(i Input) (Output, error)

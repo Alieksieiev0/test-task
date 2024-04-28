@@ -5,6 +5,10 @@ import (
 	"io"
 )
 
+func NewJsonParser[T any]() *JsonParser[T] {
+	return &JsonParser[T]{}
+}
+
 type JsonParser[T any] struct {
 }
 

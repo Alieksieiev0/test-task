@@ -5,18 +5,60 @@ import (
 	"time"
 )
 
-type StringEntry struct {
-	message   string
-	timestamp time.Time
+type MessageEntry struct {
+	Message   string    `json:"message"`
+	Timestamp time.Time `json:"timestamp"`
 	err       error
 }
 
-func (s *StringEntry) String() string {
-	return "some"
+func (m *MessageEntry) Val() string {
+	return "[" + m.Timestamp.Format(time.DateTime) + "]: " + m.Message
 }
 
-func (s *StringEntry) Err() error {
-	return s.err
+func (m *MessageEntry) Err() error {
+	return m.err
+}
+
+type AsyncErrorEntry struct {
+	err chan error
+}
+
+func (a *AsyncErrorEntry) Val() <-chan error {
+	return a.err
+}
+
+func (a *AsyncErrorEntry) PassVal(err error) {
+	a.err <- err
+}
+
+func (a *AsyncErrorEntry) Close() {
+	close(a.err)
+}
+
+type AsyncStringEntry struct {
+	message chan string
+	err     chan error
+}
+
+func (a *AsyncStringEntry) Val() <-chan string {
+	return a.message
+}
+
+func (a *AsyncStringEntry) Err() <-chan error {
+	return a.err
+}
+
+func (a *AsyncStringEntry) PassVal(message string) {
+	a.message <- message
+}
+
+func (a *AsyncStringEntry) PassErr(err error) {
+	a.err <- err
+}
+
+func (a *AsyncStringEntry) Close() {
+	close(a.err)
+	close(a.message)
 }
 
 type FileEntry struct {

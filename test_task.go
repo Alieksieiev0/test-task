@@ -103,7 +103,7 @@ func (p *Parser) saveContent(
 	return errChan
 }
 
-func main() {
+func mainT() {
 	fileNames := map[string]string{
 		"file1.txt": "out1.txt",
 		"file2.txt": "out2.txt",

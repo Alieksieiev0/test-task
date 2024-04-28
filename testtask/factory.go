@@ -2,35 +2,48 @@ package testtask
 
 import (
 	"io"
-	"os"
 )
 
-func NewStringEntryFactory(parser Parser[io.Reader, *StringEntry]) StringEntryFactory {
-	return StringEntryFactory{
+func NewMessageEntryFactory(parser Parser[io.Reader, *MessageEntry]) MessageEntryFactory {
+	return MessageEntryFactory{
 		parser: parser,
 	}
 }
 
-type StringEntryFactory struct {
-	parser Parser[io.Reader, *StringEntry]
+type MessageEntryFactory struct {
+	parser Parser[io.Reader, *MessageEntry]
 }
 
-func (s StringEntryFactory) Create(r io.Reader) Entry {
-	e := &StringEntry{}
-	e, err := s.parser.Parse(r, e)
+func (m MessageEntryFactory) Create(r io.Reader) ErrorProneEntry[string] {
+	e := &MessageEntry{}
+	e, err := m.parser.Parse(r, e)
 	if err != nil {
-		return &StringEntry{err: err}
+		return &MessageEntry{err: err}
 	}
 	return e
 }
 
-type FileEntryFactory struct {
+func NewAsyncErrorEntryFactory() AsyncErrorEntryFactory {
+	return AsyncErrorEntryFactory{}
 }
 
-func (f FileEntryFactory) Create(filename string) OSEntry[io.Reader] {
-	file, err := os.Open(filename)
-	if err != nil {
-		return &FileEntry{err: err}
-	}
-	return &FileEntry{readCloser: file, err: nil}
+type AsyncErrorEntryFactory struct {
+}
+
+func (s AsyncErrorEntryFactory) Create() AsyncEntry[error] {
+	errChan := make(chan error)
+	return &AsyncErrorEntry{err: errChan}
+}
+
+func NewAsyncStringEntryFactory() AsyncStringEntryFactory {
+	return AsyncStringEntryFactory{}
+}
+
+type AsyncStringEntryFactory struct {
+}
+
+func (s AsyncStringEntryFactory) Create() AsyncErrorProneEntry[string] {
+	errChan := make(chan error)
+	messageChan := make(chan string)
+	return &AsyncStringEntry{err: errChan, message: messageChan}
 }
