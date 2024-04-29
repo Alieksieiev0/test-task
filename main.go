@@ -33,7 +33,9 @@ func main() {
 		),
 		processor.NewSequentialProcessor[string, func(context.Context) testtask.AsyncErrorProneEntry[string]](),
 		operation.NewAsyncReadOperationFactory().
-			Create(time.Duration(rand.Intn(5000)*int(time.Millisecond))),
+			Create(func() time.Duration {
+				return time.Duration(rand.Intn(5000) * int(time.Millisecond))
+			}),
 		reader.NewFileBasedFactory().Create('\n'),
 		&wg,
 	)

@@ -15,14 +15,14 @@ type AsyncReadOperationFactory struct {
 }
 
 func (a AsyncReadOperationFactory) Create(
-	delay time.Duration,
+	delayFunc func() time.Duration,
 ) func(context.Context) testtask.Operation[testtask.ErrorProneEntry[string], testtask.AsyncErrorProneEntry[string]] {
 	return func(
 		ctx context.Context,
 	) testtask.Operation[testtask.ErrorProneEntry[string], testtask.AsyncErrorProneEntry[string]] {
 		return &AsyncReadOperation[testtask.ErrorProneEntry[string], testtask.AsyncErrorProneEntry[string]]{
-			ctx:   ctx,
-			delay: delay,
+			ctx:       ctx,
+			delayFunc: delayFunc,
 		}
 	}
 }

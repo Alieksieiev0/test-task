@@ -10,8 +10,8 @@ import (
 )
 
 type AsyncReadOperation[Input ErrorProneEntry[string], Output AsyncErrorProneEntry[string]] struct {
-	ctx   context.Context
-	delay time.Duration
+	ctx       context.Context
+	delayFunc func() time.Duration
 }
 
 func (a *AsyncReadOperation[Input, Output]) Run(iterator iterator.Iterator[Input], results Output) {
@@ -32,7 +32,7 @@ func (a *AsyncReadOperation[Input, Output]) Run(iterator iterator.Iterator[Input
 				return
 			}
 
-			time.Sleep(a.delay)
+			time.Sleep(a.delayFunc())
 			line := entry.Val().Val()
 			fmt.Println("LINE - ", line)
 			results.PassVal(line)
