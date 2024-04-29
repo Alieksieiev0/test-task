@@ -1,6 +1,8 @@
 package testtask
 
 import (
+	"context"
+
 	"github.com/Alieksieiev0/test-task/iterator"
 	"github.com/Alieksieiev0/test-task/reader"
 	"github.com/Alieksieiev0/test-task/writer"
@@ -20,7 +22,11 @@ type Operation[Input any, Output any] interface {
 }
 
 type CallbackOperation[T, V any] interface {
-	Run(firstIter iterator.Iterator[T], secondIter iterator.Iterator[func(T) V])
+	Close()
+	Run(
+		firstIter iterator.Iterator[func(context.Context) T],
+		secondIter iterator.Iterator[func(context.Context, T) V],
+	)
 }
 
 type Processor[Input, Output any] interface {

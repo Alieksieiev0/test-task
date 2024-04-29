@@ -1,10 +1,14 @@
 package testtask
 
-import "github.com/Alieksieiev0/test-task/iterator"
+import (
+	"context"
+
+	"github.com/Alieksieiev0/test-task/iterator"
+)
 
 type App struct {
-	parser    iterator.IteratorWrapper[string, AsyncErrorProneEntry[string]]
-	writer    iterator.IteratorWrapper[string, func(AsyncErrorProneEntry[string]) AsyncEntry[error]]
+	parser    iterator.IteratorWrapper[string, func(context.Context) AsyncErrorProneEntry[string]]
+	writer    iterator.IteratorWrapper[string, func(context.Context, AsyncErrorProneEntry[string]) AsyncEntry[error]]
 	source    KeyValueSource[string, string]
 	operation CallbackOperation[AsyncErrorProneEntry[string], AsyncEntry[error]]
 }
@@ -16,6 +20,10 @@ func (a *App) Run() {
 	)
 }
 
+func (a *App) Close() {
+	a.operation.Close()
+}
+
 func NewAppFactory() *AppFactory {
 	return &AppFactory{}
 }
@@ -24,8 +32,8 @@ type AppFactory struct {
 }
 
 func (a *AppFactory) Create(
-	parser iterator.IteratorWrapper[string, AsyncErrorProneEntry[string]],
-	writer iterator.IteratorWrapper[string, func(AsyncErrorProneEntry[string]) AsyncEntry[error]],
+	parser iterator.IteratorWrapper[string, func(context.Context) AsyncErrorProneEntry[string]],
+	writer iterator.IteratorWrapper[string, func(context.Context, AsyncErrorProneEntry[string]) AsyncEntry[error]],
 	source KeyValueSource[string, string],
 	operation CallbackOperation[AsyncErrorProneEntry[string], AsyncEntry[error]],
 ) *App {

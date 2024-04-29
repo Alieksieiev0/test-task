@@ -8,68 +8,68 @@ import (
 	"golang.org/x/net/context"
 )
 
-func NewAsyncFileDecoder[T AsyncErrorProneEntry[string], V AsyncEntry[error]]() *AsyncFileDecoder[T, V] {
-	ctx, close := context.WithCancel(context.Background())
-	return &AsyncFileDecoder[T, V]{ctx: ctx, close: close}
+func NewAsyncFileDecoder[T AsyncErrorProneEntry[string], V AsyncEntry[error]](
+	wg *sync.WaitGroup,
+) *AsyncFileDecoder[T, V] {
+	ctx, cancel := context.WithCancel(context.Background())
+	return &AsyncFileDecoder[T, V]{ctx: ctx, cancel: cancel, wg: wg}
 }
 
 type AsyncFileDecoder[T AsyncErrorProneEntry[string], V AsyncEntry[error]] struct {
-	ctx   context.Context
-	close func()
+	ctx    context.Context
+	cancel func()
+	wg     *sync.WaitGroup
 }
 
-func (a *AsyncFileDecoder[T, V]) Close() error {
-	a.close()
-	return nil
+func (a *AsyncFileDecoder[T, V]) Close() {
+	a.cancel()
 }
 
 func (a *AsyncFileDecoder[T, V]) Run(
-	readIterator iterator.Iterator[T],
-	writeCallbackIterator iterator.Iterator[func(T) V],
+	readCallbackIterator iterator.Iterator[func(context.Context) T],
+	writeCallbackIterator iterator.Iterator[func(context.Context, T) V],
 ) {
-	var wg sync.WaitGroup
 	for {
-		wg.Add(1)
-		readEntry := readIterator.Next()
-		readResults := readEntry.Val()
-		if readEntry.Err() != nil {
-			fmt.Println(readEntry.Err())
-			wg.Done()
+		ctx, cancel := context.WithCancel(context.Background())
+		readCallbackEntry := readCallbackIterator.Next()
+		if readCallbackEntry.Err() != nil {
 			break
 		}
 
 		writeCallbackEntry := writeCallbackIterator.Next()
 		if writeCallbackEntry.Err() != nil {
-			wg.Done()
 			break
 		}
-		writerCallback := writeCallbackEntry.Val()
-		writeResults := writerCallback(readResults)
 
+		readResults := readCallbackEntry.Val()(ctx)
+		writeResults := writeCallbackEntry.Val()(ctx, readResults)
+
+		a.wg.Add(1)
 		go func() {
+			defer a.wg.Done()
 			for {
 				select {
+				case <-a.ctx.Done():
+					cancel()
+					return
 				case err, ok := <-readResults.Err():
 					if !ok {
 						continue
 					}
 					fmt.Println("ERROR READING FILE ", err)
-					wg.Done()
+					cancel()
 					return
 				case err, more := <-writeResults.Val():
 					if !more {
-						fmt.Println("NO MORE")
-						wg.Done()
 						return
 					}
+					cancel()
 					fmt.Println("ERROR SAVING FILE:", err)
-					wg.Done()
 					return
-					//cancelFunc()
 				}
 
 			}
 		}()
 	}
-	wg.Wait()
+	a.wg.Wait()
 }

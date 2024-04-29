@@ -1,6 +1,9 @@
 package main
 
 import (
+	"context"
+	"math/rand"
+	"sync"
 	"time"
 
 	"github.com/Alieksieiev0/test-task/operation"
@@ -13,22 +16,26 @@ import (
 )
 
 func main() {
-	files := map[string]string{
-		"file1.txt": "out1.txt",
-		"file2.txt": "out2.txt",
-		"file3.txt": "out3.txt",
-	}
+	var (
+		files = map[string]string{
+			"file1.txt": "out1.txt",
+			"file2.txt": "out2.txt",
+			"file3.txt": "out3.txt",
+		}
+		wg sync.WaitGroup
+	)
+
 	parser := testtask.NewAsyncParserWrapperFactory().Create(
 		testtask.NewDefaultParserFactory().Create(
 			processor.NewSequentialProcessor[string, testtask.ErrorProneEntry[string]](),
 			source.NewFileContentFactory().Create,
 			parser.NewJsonParser[*testtask.MessageEntry](),
 		),
-		processor.NewSequentialProcessor[string, testtask.AsyncErrorProneEntry[string]](),
-		operation.NewAsyncReadOperation[testtask.ErrorProneEntry[string], testtask.AsyncErrorProneEntry[string]](
-			time.Millisecond*5000,
-		),
+		processor.NewSequentialProcessor[string, func(context.Context) testtask.AsyncErrorProneEntry[string]](),
+		operation.NewAsyncReadOperationFactory().
+			Create(time.Duration(rand.Intn(5000)*int(time.Millisecond))),
 		reader.NewFileBasedFactory().Create('\n'),
+		&wg,
 	)
 
 	writer := testtask.NewAsyncWriterWrapperFactory().Create(
@@ -36,17 +43,21 @@ func main() {
 			processor.NewSequentialProcessor[string, testtask.Entry[error]](),
 			source.NewAsyncFileContentFactory().Create,
 		),
-		processor.NewSequentialProcessor[string, func(testtask.AsyncErrorProneEntry[string]) testtask.AsyncEntry[error]](),
-		operation.NewAsyncWriteOperation[testtask.Entry[error], testtask.AsyncEntry[error]](),
+		processor.NewSequentialProcessor[string, func(context.Context, testtask.AsyncErrorProneEntry[string]) testtask.AsyncEntry[error]](),
+		operation.NewAsyncWriteOperationFactory().Create(),
 		writer.NewFileBasedFactory().Create('\n'),
+		&wg,
 	)
 
 	app := testtask.NewAppFactory().Create(
 		parser,
 		writer,
 		source.NewSortedFilePairsFactory().CreateFromMap(files),
-		operation.NewAsyncFileDecoder[testtask.AsyncErrorProneEntry[string], testtask.AsyncEntry[error]](),
+		operation.NewAsyncFileDecoder[testtask.AsyncErrorProneEntry[string], testtask.AsyncEntry[error]](
+			&wg,
+		),
 	)
 
 	app.Run()
+
 }

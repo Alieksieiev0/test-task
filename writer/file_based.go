@@ -8,6 +8,7 @@ import (
 type FileBased struct {
 	writer *bufio.Writer
 	delim  byte
+	file   *os.File
 }
 
 func (f *FileBased) Write(content string) error {
@@ -17,6 +18,7 @@ func (f *FileBased) Write(content string) error {
 
 func (f *FileBased) Close() {
 	f.writer.Flush()
+	f.file.Close()
 }
 
 func NewFileBasedFactory() FileBasedFactory {
@@ -36,6 +38,7 @@ func (f FileBasedFactory) Create(delim byte) func(name string) (Writer[string], 
 		return &FileBased{
 			writer: bufio.NewWriter(file),
 			delim:  delim,
+			file:   file,
 		}, nil
 	}
 }
